@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "algorithm": "sha256",
+    "generated_at": "2026-02-05T21:13:34",
+    "root_directory": "D:\\ITIS-3200\\Lab02\\MyFiles",
+    "updated_at": "2026-02-05T21:13:49"
+  },
+  "files": [
+    {
+      "filepath": "D:\\ITIS-3200\\Lab02\\MyFiles\\NewFile",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "filepath": "D:\\ITIS-3200\\Lab02\\MyFiles\\coolstuff.txt",
+      "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "filepath": "D:\\ITIS-3200\\Lab02\\MyFiles\\file1.txt",
+      "hash": "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069"
+    }
+  ]
+}
