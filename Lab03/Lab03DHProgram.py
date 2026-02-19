@@ -193,7 +193,7 @@ def main():
     print(" [Status]: Shared Secret computed: S = B^a mod P = A^b mod P")
 
     print_step("Step 3: Secure Message Transmission")
-    message = b"<INPUT YOUR MESSAGE HERE>"  # Put in your test message here  (ONLY LINE YOU CHANGE)
+    message = b"We are meeting at 10am tomorrow." 
     encrypted_msg = xor_crypt(message, alice.session_prng)
     delivered_data = net.send("Alice", "Bob", encrypted_msg)
     final_message = xor_crypt(delivered_data, bob.session_prng)
