@@ -32,19 +32,10 @@ G = 2
 # --- PART A: STATEFUL PRNG ---
 class SecurePRNG:
     def __init__(self, seed_int: int):
-        """
-        Initialize 32-byte internal state from the DH shared secret.
-        We treat the shared secret as bytes, then hash to get a fixed 32-byte state.
-        """
         seed_bytes = seed_int.to_bytes((seed_int.bit_length() + 7) // 8 or 1, "big")
         self.state = hashlib.sha256(seed_bytes).digest()  # 32 bytes
 
     def generate(self, n_bytes: int) -> bytes:
-        """
-        Generate n_bytes of pseudorandom output.
-        Rollback resistance requirement: update internal state using a one-way hash
-        AFTER every generation block, so prior state/output cannot be recovered.
-        """
         output = b""
         while len(output) < n_bytes:
             # 1) Produce keystream block from current state
@@ -52,16 +43,11 @@ class SecurePRNG:
             output += block
 
             # 2) Update state immediately with a one-way progression
-            #    (mix in the block so next state depends on both)
             self.state = hashlib.sha256(self.state + block).digest()
 
         return output[:n_bytes]
 
 def xor_crypt(data: bytes, prng: SecurePRNG) -> bytes:
-    """
-    Simple XOR stream cipher: ciphertext = plaintext XOR keystream
-    Same function decrypts: plaintext = ciphertext XOR keystream
-    """
     keystream = prng.generate(len(data))
     return bytes([b ^ k for b, k in zip(data, keystream)])
 
@@ -70,7 +56,6 @@ class Entity:
     # Calculate public and private keys with global P and G.
     def __init__(self, name: str):
         self.name = name
-        # Private key in [2, P-2]
         self.private_key = secrets.randbelow(P - 3) + 2
         self.public_key = pow(G, self.private_key, P)
         self.session_prng = None
@@ -128,13 +113,12 @@ class Mallory:
         if isinstance(payload, bytes):
             print(f"[MALLORY] Intercepting Encrypted Message from {sender}...")
 
-            # Decrypt using the appropriate session PRNG (Alice is the sender in this lab)
+            # Decrypt using the appropriate session PRNG 
             if sender == "Alice":
                 if self.alice_prng is None or self.bob_prng is None:
                     raise RuntimeError("Mallory does not have both sessions established yet.")
                 plaintext = xor_crypt(payload, self.alice_prng)
             else:
-                # If you ever extend the lab to Bob->Alice messages:
                 plaintext = xor_crypt(payload, self.bob_prng)
 
             # Print plaintext for Mallory's spying
@@ -143,8 +127,7 @@ class Mallory:
             except UnicodeDecodeError:
                 print_info("Mallory decrypted (raw)", plaintext)
 
-            # Modify the plaintext message (keep same length for clean demo)
-            # Example: change "9pm" -> "3am" (same 3 bytes)
+            # Modify the plaintext message
             modified = plaintext.replace(b"9pm", b"3am")
 
             # Re-encrypt using the PRNG shared with Bob so Bob can decrypt cleanly
