@@ -1,0 +1,143 @@
+{#
+  dashboard.html — Smart home control panel.
+
+  Variables passed from app.py's dashboard() route:
+    devices      — DEVICE_STATE dict: { device_id: {label, active}, ... }
+    device_roles — DEVICE_ROLES dict: { device_id: set of allowed roles }
+    username     — logged-in username
+    role         — logged-in role
+
+  UI rule: buttons are hidden when the user's role is not in device_roles for
+  that device. This is a UX convenience only — the real enforcement is the
+  server-side require_role() check in app.py. A user who bypasses the UI and
+  POSTs directly to /device/<id>/toggle will still get a 403.
+
+  When config_security_enabled is False, all buttons are shown regardless of
+  role, matching the broken server-side behaviour for the attack demo.
+#}
+{% extends "base.html" %}
+
+{% block title %}Dashboard &mdash; Smart Home Security{% endblock %}
+
+{% block content %}
+
+<h2>Welcome, {{ username }}!</h2>
+<p class="role-note">You are logged in as: <strong>{{ role }}</strong></p>
+
+<!-- ── Device grid ──────────────────────────────────────────────────────── -->
+<div class="device-grid">
+
+    <!-- ── Door Lock ─────────────────────────────────────────────────────── -->
+    <div class="device-card">
+        <div class="device-icon">&#128274;</div>
+        <h3>{{ devices.lock.label }}</h3>
+        <p class="device-status status-{{ 'on' if devices.lock.active else 'off' }}">
+            {{ 'LOCKED' if devices.lock.active else 'UNLOCKED' }}
+        </p>
+
+        {#
+          SECURITY MECHANISM: RBAC — UI layer.
+          Show the button only if the user's role is permitted (owner only).
+          When SECURITY_ENABLED is False, show it to everyone to match the
+          broken server state (attack demo: guest can unlock the door).
+          NOTE: hiding the button here is NOT the security — require_role()
+          in app.py is. This is just to avoid confusing the user.
+        #}
+        {% if not config_security_enabled or role in device_roles.lock %}
+        <form method="post" action="{{ url_for('device_toggle', device_id='lock') }}">
+            <!-- SECURITY MECHANISM: CSRF token — Flask-WTF validates this on
+                 every POST. A forged request from attack.html won't have it.
+                 When SECURITY_ENABLED=False this route is csrf.exempt()'d. -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">
+                {{ 'Unlock' if devices.lock.active else 'Lock' }}
+            </button>
+        </form>
+        {% else %}
+        <p class="no-permission">&#128683; Owner only</p>
+        {% endif %}
+    </div>
+
+    <!-- ── Cameras ───────────────────────────────────────────────────────── -->
+    <div class="device-card">
+        <div class="device-icon">&#128247;</div>
+        <h3>{{ devices.cameras.label }}</h3>
+        <p class="device-status status-{{ 'on' if devices.cameras.active else 'off' }}">
+            {{ 'ON' if devices.cameras.active else 'OFF' }}
+        </p>
+
+        {# SECURITY MECHANISM: RBAC — UI layer (owner only). #}
+        {% if not config_security_enabled or role in device_roles.cameras %}
+        <form method="post" action="{{ url_for('device_toggle', device_id='cameras') }}">
+            <!-- SECURITY MECHANISM: CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">
+                {{ 'Turn Off' if devices.cameras.active else 'Turn On' }}
+            </button>
+        </form>
+        {% else %}
+        <p class="no-permission">&#128683; Owner only</p>
+        {% endif %}
+    </div>
+
+    <!-- ── Thermostat ────────────────────────────────────────────────────── -->
+    <div class="device-card">
+        <div class="device-icon">&#127777;</div>
+        <h3>{{ devices.thermostat.label }}</h3>
+        <p class="device-status status-{{ 'on' if devices.thermostat.active else 'off' }}">
+            {{ 'ON' if devices.thermostat.active else 'OFF' }}
+        </p>
+
+        {# SECURITY MECHANISM: RBAC — UI layer (owner + guest). #}
+        {% if not config_security_enabled or role in device_roles.thermostat %}
+        <form method="post" action="{{ url_for('device_toggle', device_id='thermostat') }}">
+            <!-- SECURITY MECHANISM: CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">
+                {{ 'Turn Off' if devices.thermostat.active else 'Turn On' }}
+            </button>
+        </form>
+        {% else %}
+        <p class="no-permission">&#128683; Owner / Guest only</p>
+        {% endif %}
+    </div>
+
+    <!-- ── Lights ────────────────────────────────────────────────────────── -->
+    <div class="device-card">
+        <div class="device-icon">&#128161;</div>
+        <h3>{{ devices.lights.label }}</h3>
+        <p class="device-status status-{{ 'on' if devices.lights.active else 'off' }}">
+            {{ 'ON' if devices.lights.active else 'OFF' }}
+        </p>
+
+        {# SECURITY MECHANISM: RBAC — UI layer (owner + guest). #}
+        {% if not config_security_enabled or role in device_roles.lights %}
+        <form method="post" action="{{ url_for('device_toggle', device_id='lights') }}">
+            <!-- SECURITY MECHANISM: CSRF token -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">
+                {{ 'Turn Off' if devices.lights.active else 'Turn On' }}
+            </button>
+        </form>
+        {% else %}
+        <p class="no-permission">&#128683; Owner / Guest only</p>
+        {% endif %}
+    </div>
+
+</div><!-- /.device-grid -->
+
+<!-- ── Security status banner ──────────────────────────────────────────── -->
+<div class="security-banner {{ 'secure' if config_security_enabled else 'broken' }}">
+    {% if config_security_enabled %}
+        &#128274; Security is <strong>ENABLED</strong> &mdash;
+        RBAC and CSRF protection are active.
+    {% else %}
+        &#9888; Security is <strong>DISABLED</strong> &mdash;
+        attacks are possible.
+        <a href="{{ url_for('attack') }}" style="color:#721c24; font-weight:bold;">
+            Run CSRF attack demo &rarr;
+        </a>
+    {% endif %}
+</div>
+
+{% endblock %}

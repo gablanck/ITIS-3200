@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+<!--
+  login.html — Login page.
+
+  The form POSTs to /login. Flask reads request.form['username'] and
+  request.form['password'] and checks them against the USERS dictionary.
+  On success, the user is redirected to /dashboard.
+  On failure, a flash message is shown and this page is re-rendered.
+-->
+
+{% block title %}Login &mdash; Smart Home Security{% endblock %}
+
+{% block content %}
+<div class="login-box">
+    <h2>Login</h2>
+    <p class="login-hint">
+        Demo accounts:
+        <code>owner / owner123</code> &nbsp;|&nbsp;
+        <code>guest / guest123</code> &nbsp;|&nbsp;
+        <code>child / child123</code>
+    </p>
+
+    <!--
+      method="post" sends credentials in the request body (not visible in URL).
+      action="/login" targets our login route in app.py.
+      Phase 3 will add a hidden CSRF token field inside this form.
+    -->
+    <form method="post" action="/login">
+        <!-- SECURITY MECHANISM: CSRF token — Flask-WTF checks this on every POST.
+             A forged request from another site won't have this token and will be rejected. -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username"
+               placeholder="Enter username" required autofocus>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               placeholder="Enter password" required>
+
+        <input type="submit" value="Login">
+    </form>
+</div>
+{% endblock %}

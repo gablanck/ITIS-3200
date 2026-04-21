@@ -1,0 +1,64 @@
+{#
+  base.html — Shared page layout inherited by every other template.
+
+  Child templates use Jinja2 blocks to inject their own content:
+    block title   — sets the <title> tag
+    block content — fills the <main> area
+
+  Variables available on every page (passed from each route):
+    session.username — the logged-in user's name
+    session.role     — their role (owner / guest / child)
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Smart Home Security{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <!-- ── Header: shown on every page ──────────────────────────────────── -->
+    <header>
+        <div class="header-title">
+            <h1>&#127968; Smart Home Security Dashboard</h1>
+        </div>
+
+        <!-- Show who is logged in. session is available in all Jinja templates. -->
+        {% if session.username %}
+        <div class="header-user">
+            <span class="user-info">
+                Logged in as <strong>{{ session.username }}</strong>
+                &mdash; Role: <span class="role-badge role-{{ session.role }}">{{ session.role }}</span>
+            </span>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+        {% endif %}
+    </header>
+
+    <!-- ── Flash messages (success / error feedback) ─────────────────────── -->
+    <!-- flash() in Python queues a one-time message; get_flashed_messages()  -->
+    <!-- retrieves and clears it so it only shows once.                       -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- ── Main content: each page fills this block ──────────────────────── -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- ── Footer ────────────────────────────────────────────────────────── -->
+    <footer>
+        <p>ITIS 3200 &mdash; Security Demo Project</p>
+    </footer>
+
+</body>
+</html>

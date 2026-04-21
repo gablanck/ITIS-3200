@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+<!--
+  forbidden.html — Shown when the server returns HTTP 403.
+
+  This page is triggered by abort(403) in the RBAC checks added in Phase 3.
+  It appears when a user tries to control a device their role doesn't permit.
+  Example: a "guest" user tries to toggle the door lock.
+-->
+
+{% block title %}403 Forbidden &mdash; Smart Home Security{% endblock %}
+
+{% block content %}
+<div class="forbidden-box">
+    <div class="forbidden-icon">&#128683;</div>
+    <h2>403 &mdash; Access Denied</h2>
+    <p>
+        Your role (<strong>{{ session.role }}</strong>) does not have permission
+        to perform that action.
+    </p>
+    <p class="forbidden-hint">
+        This is the RBAC mechanism at work. Only users with the correct role
+        can control this device.
+    </p>
+    <a href="{{ url_for('dashboard') }}" class="back-btn">&#8592; Back to Dashboard</a>
+</div>
+{% endblock %}

